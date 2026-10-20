@@ -6,19 +6,17 @@
 --SELECT
 /* 1. Write a query that returns everything in the customer table. */
 --QUERY 1
-
-
-
-
+SELECT * FROM customer
 --END QUERY
 
 
 /* 2. Write a query that displays all of the columns and 10 rows from the customer table, 
 sorted by customer_last_name, then customer_first_ name. */
 --QUERY 2
-
-
-
+SELECT * 
+FROM customer 
+ORDER BY customer_last_name ASC, customer_first_name ASC
+LIMIT 10
 
 --END QUERY
 
