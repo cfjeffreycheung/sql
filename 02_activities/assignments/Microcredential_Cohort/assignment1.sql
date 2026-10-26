@@ -121,7 +121,7 @@ Limit to 24 rows of output. */
 
 SELECT *
 FROM vendor
-JOIN vendor_booth_assignments
+INNER JOIN vendor_booth_assignments
 ON vendor.vendor_id = vendor_booth_assignments.vendor_id
 ORDER BY
 	market_date ASC,
