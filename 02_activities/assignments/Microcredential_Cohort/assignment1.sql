@@ -6,19 +6,20 @@
 --SELECT
 /* 1. Write a query that returns everything in the customer table. */
 --QUERY 1
-
-
-
-
+SELECT * 
+FROM customer;
 --END QUERY
 
 
 /* 2. Write a query that displays all of the columns and 10 rows from the customer table, 
 sorted by customer_last_name, then customer_first_ name. */
 --QUERY 2
-
-
-
+SELECT * 
+FROM customer 
+ORDER BY 
+	customer_last_name ASC, 
+	customer_first_name ASC
+LIMIT 10;
 
 --END QUERY
 
@@ -27,9 +28,12 @@ sorted by customer_last_name, then customer_first_ name. */
 /* 1. Write a query that returns all customer purchases of product IDs 4 and 9. 
 Limit to 25 rows of output. */
 --QUERY 3
-
-
-
+SELECT *
+FROM customer_purchases
+WHERE
+	product_id IS 4 OR
+	product_id IS 9
+LIMIT 25;
 
 --END QUERY
 
@@ -43,8 +47,23 @@ Limit to 25 rows of output.
 */
 --QUERY 4
 
+-- First case: Two conditions using AND
+SELECT 
+	*,
+	(quantity * cost_per_quantity) AS price
+FROM customer_purchases
+WHERE
+	customer_id >= 8 AND customer_id <= 10
+LIMIT 25;
 
-
+-- Second case: One condition using BETWEEN
+SELECT 
+	*,
+	(quantity * cost_per_quantity) AS price
+FROM customer_purchases
+WHERE
+	customer_id BETWEEN 8 AND 10
+LIMIT 25;
 
 --END QUERY
 
@@ -56,6 +75,15 @@ columns and add a column called prod_qty_type_condensed that displays the word �
 if the product_qty_type is “unit,” and otherwise displays the word “bulk.” */
 --QUERY 5
 
+SELECT 
+	product_id,
+	product_name,
+	CASE product_qty_type
+		WHEN 'unit'
+			THEN 'unit'
+		ELSE 'bulk'
+	END product_qty_type_condensed
+FROM product;
 
 
 
@@ -67,8 +95,20 @@ add a column to the previous query called pepper_flag that outputs a 1 if the pr
 contains the word “pepper” (regardless of capitalization), and otherwise outputs 0. */
 --QUERY 6
 
-
-
+SELECT 
+	product_id,
+	product_name,
+	CASE product_qty_type
+		WHEN 'unit'
+			THEN 'unit'
+		ELSE 'bulk'
+	END product_qty_type_condensed,
+	CASE
+		WHEN lower(product_name) REGEXP 'pepper'
+			THEN 1
+		ELSE 0
+	END pepper_flag
+FROM product;
 
 --END QUERY
 
@@ -79,8 +119,14 @@ vendor_id field they both have in common, and sorts the result by market_date, t
 Limit to 24 rows of output. */
 --QUERY 7
 
-
-
+SELECT *
+FROM vendor
+INNER JOIN vendor_booth_assignments
+ON vendor.vendor_id = vendor_booth_assignments.vendor_id
+ORDER BY
+	market_date ASC,
+	vendor_name ASC
+LIMIT 24;
 
 --END QUERY
 
@@ -93,7 +139,11 @@ Limit to 24 rows of output. */
 at the farmer’s market by counting the vendor booth assignments per vendor_id. */
 --QUERY 8
 
-
+SELECT
+	vendor_id,
+	COUNT(booth_number) AS total_booth_rent_count
+FROM vendor_booth_assignments
+GROUP BY vendor_id;
 
 
 --END QUERY
@@ -106,8 +156,26 @@ of customers for them to give stickers to, sorted by last name, then first name.
 HINT: This query requires you to join two tables, use an aggregate function, and use the HAVING keyword. */
 --QUERY 9
 
-
-
+SELECT 
+	customer_last_name,
+	customer_first_name,
+	SUM(day_total) as total_amount_spent
+FROM 
+	--Sub-query to extract column with customer day total spending
+	(SELECT 
+		*,
+		SUM(quantity * cost_per_quantity) AS day_total 
+	FROM customer_purchases
+	JOIN customer
+		ON customer_purchases.customer_id = customer.customer_id
+	GROUP BY market_date
+	)
+GROUP BY customer_id
+HAVING
+	total_amount_spent > 2000
+ORDER BY
+	customer_last_name ASC,
+	customer_first_name ASC;
 
 --END QUERY
 
@@ -125,8 +193,80 @@ VALUES(col1,col2,col3,col4,col5)
 */
 --QUERY 10
 
+-- Clear any previous existing temp tables
+DROP TABLE IF EXISTS temp.new_vendor;
 
+-- Create temp table new_vendor based on existing vendor table
+CREATE TEMP TABLE IF NOT EXISTS temp.new_vendor AS
+SELECT * FROM vendor;
 
+-- Insert new 10th vendor details from the corresponding columns
+INSERT INTO temp.new_vendor (
+	vendor_id,
+	vendor_name,
+	vendor_type,
+	vendor_owner_first_name,
+	vendor_owner_last_name
+	)
+VALUES(
+	10,
+	'Thomass Superfood Store',
+	'Fresh Focused',
+	'Thomas',
+	'Rosenthal'
+	);
+	
+-- Check
+SELECT * FROM temp.new_vendor;
+
+---- Alternatively, create a temp table that can conditionally check for conflicts before inserting. Replaces (deletes + inserts) column if the vendor_id exists.
+--
+---- Clear any previous existing temp tables
+-- DROP TABLE IF EXISTS temp.new_vendor;
+-- 
+---- Create temp table new_vendor for testing changes on vendor data
+-- CREATE TEMP TABLE IF NOT EXISTS temp.new_vendor (
+-- 	vendor_id INTEGER PRIMARY KEY, -- Set vendor_id as PK so that the condition check works for inserts
+-- 	vendor_name TEXT,
+-- 	vendor_type TEXT,
+-- 	vendor_owner_first_name TEXT,
+-- 	vendor_owner_last_name TEXT
+-- 	);
+-- 
+---- Copying data from existing vendor table into temp table. Only replaces (delete + insert) if entry exists
+-- INSERT OR REPLACE INTO temp.new_vendor (
+-- 	vendor_id,
+-- 	vendor_name,
+-- 	vendor_type,
+-- 	vendor_owner_first_name,
+-- 	vendor_owner_last_name
+-- 	)
+-- SELECT 
+-- 	vendor_id,
+-- 	vendor_name,
+-- 	vendor_type,
+-- 	vendor_owner_first_name,
+-- 	vendor_owner_last_name
+-- FROM vendor;
+-- 
+---- Insert new 10th column data. Only replaces if the entry exists
+-- INSERT OR REPLACE INTO temp.new_vendor(
+-- 	vendor_id,
+-- 	vendor_name,
+-- 	vendor_type,
+-- 	vendor_owner_first_name,
+-- 	vendor_owner_last_name
+-- 	)
+-- VALUES(
+-- 	10,
+-- 	'Thomass Superfood Store',
+-- 	'Fresh Focused',
+-- 	'Thomas',
+-- 	'Rosenthal'
+-- 	);
+-- 	
+---- Check	
+-- SELECT * FROM temp.new_vendor;
 
 --END QUERY
 
@@ -139,7 +279,12 @@ and year are!
 Limit to 25 rows of output. */
 --QUERY 11
 
-
+SELECT 
+	customer_id, 
+	STRFTIME('%m', market_date) AS month,
+	STRFTIME('%Y', market_date) AS year
+FROM customer_purchases
+LIMIT 25;
 
 
 --END QUERY
@@ -153,6 +298,23 @@ but remember, STRFTIME returns a STRING for your WHERE statement...
 AND be sure you remove the LIMIT from the previous query before aggregating!! */
 --QUERY 12
 
+SELECT
+	customer_id,
+	month,
+	year,
+	SUM(price) AS total_spent -- Total spent
+FROM
+(
+	SELECT 
+		customer_id, 
+		CAST ( STRFTIME('%m', market_date) AS INTEGER) AS month,
+		CAST ( STRFTIME('%Y', market_date) AS INTEGER) AS year,
+		CAST ( quantity * cost_per_quantity AS NUMERIC) AS price
+	FROM customer_purchases
+)
+WHERE
+	month = 4 AND year = 2022 -- Filter down results to entries in April 2022
+GROUP BY customer_id; -- Aggregate total spending based on customer
 
 
 

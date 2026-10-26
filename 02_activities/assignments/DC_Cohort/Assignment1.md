@@ -209,5 +209,11 @@ Consider, for example, concepts of fariness, inequality, social structures, marg
 
 
 ```
-Your thoughts...
+Databases and data systems embed values through the process of data collection. The collection process requires entries that are standardized, such as gender, date of birth, and citizenship status. Database owners define these boundaries for classifying people and attributes based on their applications. However, such processes also introduce bias that can lead to inequality, marginalization and other society-related issues during policy creations and decisions.
+
+Ideally, a database would have unique identifiers for everyone along with accurate description of their attributes. However, social conventions and norms can change throughout the years, and the attributes from an existing database from the past might not be sufficient in reflecting the correct information. 
+
+One example is the classification of gender in various countries. For some countries, gender is classified as either Male or Female with no "Other" sections. The strict classification limits the proper representations for transgender people. Such consequence may limit the human group's accessibility to hospital units when they require the knowledge of whether a patient is biologically male or female, of which the information is absent from existing databases with old data infrastructure.
+
+Another example is the representation of education level across various countries. Different countries do not share the same education curriculums that reflect a student's education level. Moreover, the grading schemes for courses are also vastly different among institutions. Such disparities in representing a student's true level of education experience can add noise and resistance for determining their eligibility to receive continuing education, leading to limited, fair access to education across institutions in different countries.
 ```
