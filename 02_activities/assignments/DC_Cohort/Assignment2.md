@@ -57,7 +57,28 @@ The store wants to keep customer addresses. Propose two architectures for the CU
 **HINT:** search type 1 vs type 2 slowly changing dimensions. 
 
 ```
-Your answer...
+Type 1 slowing changing dimensions (SCD) overwrites/updates a customer's old address with new address when one relocates. An example table for CUSTOMER_ADDRESS is shown below.
+
+| customer id   | address_line_1    | address_line_2    | address_city  | address_state | address postal code   |
+| 1             | 123 Main Street   | Unit 12           | Toronto       | ON            | M2W D3G               |
+...
+
+when a customer updates their address in the system, the old address is replaced with the new one, which loses the historial location of the customer. The relationship between customer table and customer_address table is 1:1.
+
+| customer id   | address_line_1    | address_line_2    | address_city  | address_state | address postal code   |
+| 1             | 456 Dundas Avenue | Unit 24           | North York    | ON            | W8D M5H               |
+...
+
+Type 2 SCD retains all customer's addresses by maintaining all address versions during entry. Instead of replacing the existing address, the entry is inserted into the table as a newer version instead:
+
+| customer id   | address_line_1    | address_line_2    | address_city  | address_state | address postal code   | address_version   | address_is_active
+| 1             | 123 Main Street   | Unit 12           | Toronto       | ON            | M2W D3G               | 1                 | FALSE
+| 1             | 456 Dundas Avenue | Unit 24           | North York    | ON            | W8D M5H               | 2                 | TRUE
+...
+
+Therefore, the historial location of customer_id = 1 is retained in the database after inserting the new address. In this case, the relationship between customer table and customer_address table is 1:∞.
+
+
 ```
 
 ***
@@ -192,5 +213,14 @@ Consider, for example, concepts of labour, bias, LLM proliferation, moderating c
 
 
 ```
-Your thoughts...
+The central idea of this story is that existing machine-learning architectures are just people all the way down. This statement indicates that ultimately, machine requires human intervention to perform tasks. Massive language learning models and image recognitions are trained by validation against datasets classified and prepared by human.
+
+The implication of all machines is "hand-stitched" by people means that the machines and models inherited the bias from data validation during training/modification. Such bias lead to ethical consequences related to invisible labors, illusion of objectivity from AI results, propagation of historical bias, and dehumanization from poor content moderation.
+
+One of the main ethical issues is the lack of recognition for uncredited labors. Neural nets and AIs cannot be built without curated and verified datasets done by people. While large companies such as Amazon, Meta explained how workforces can perform efficiently with AI assistants at a fraction of the cost, such companies do not highlight the numerous underpaid labors that perform the tedious, mind-numbing work of data labelling that is required for training these models. Such people who contributed to the dataset also do not receive the same level of recognition, even when the latest LLM models and AI agents show exponentially growing capabilities. One of the recent largest controversies relates to Open AI's journals on solving hundreds of Mathematical problems in which the LLM model was internally trained by staffs. While there are no official notes on what datasets was used to obtain the model, there are numerous ongoing efforts from Archives that contributes to the generated proofs. These massive yet unintuitive, inefficient proofs are ultimately being reviewed by Mathematicians to better understand the concept. Such authors in archives do not receive the recognition as the people and company who developed the model.
+
+Another ethical issue is the illusion of objectivity from AI results. Based on Boykis, Data architecture is not neutral as the overall taxonomy is "infused with politics". Only the most relevant and politically "correct" data survives through time, which means there will never be a proper representation of raw data without human filters. Sampling everything from the past is impossible. Therefore, we can only limit our data span to observable, modern era. Moreover, data is built iteratively from older frameworks. As discussed from Boykis, image recognition relies on data tagged in 2007, which sits on linguistic databases from 1990s, which in turn sit on classifications made by graduate students reading 1960s newspapers. The outdated viewpoints and historical prejudices are therefore structurally baked into modern AI. Given the numerous sources of bias in database creation, AI queries provide “the most reasonable” results within the paradigm of the subjective database, which is biased.
+
+Finally, the inaccurate content moderation and dehumanization exists in databases such as ImageNet Roulette. Neural networks attempt at reducing complex human identity into rigid, normalized data classes based on poorly labelled data with offensive labels. Such labelling incurs systematic bias and dehumanizes people. The given example from the story was the audition of “person” database from ImageNet, which found 1593 deemed offensive, unsafe or sensitive labels from total of 2832 categories. 
+
 ```
