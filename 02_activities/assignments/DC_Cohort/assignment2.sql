@@ -23,8 +23,9 @@ Edit the appropriate columns -- you're making two edits -- and the NULL rows wil
 All the other rows will remain the same. */
 --QUERY 1
 
-
-
+SELECT 
+product_name || ', ' || COALESCE(product_size, ' ')|| ' (' || COALESCE(product_qty_type, 'unit')|| ')'
+FROM product;
 
 --END QUERY
 
@@ -41,7 +42,24 @@ HINT: One of these approaches uses ROW_NUMBER() and one uses DENSE_RANK().
 Filter the visits to dates before April 29, 2022. */
 --QUERY 2
 
+-- Shows entire customer_purchase table with visit_number per customer. Each visit is tallied as a separate count (including same-day visits).
 
+SELECT
+	customer_id,
+	market_date,
+	CAST(STRFTIME('%Y', market_date) AS INTEGER) AS market_year,
+	CAST(STRFTIME('%m', market_date) AS INTEGER) AS market_month,
+	CAST(STRFTIME('%d', market_date) AS INTEGER) AS market_day,
+	ROW_NUMBER () OVER (
+		PARTITION BY customer_id --counting per unique customer
+		ORDER BY 
+			market_date ASC
+	) as visit_number
+FROM customer_purchases
+WHERE
+	market_year <= 2022 AND
+	market_month <= 4 AND
+	market_day < 29
 
 
 --END QUERY
@@ -53,7 +71,25 @@ only the customer’s most recent visit.
 HINT: Do not use the previous visit dates filter. */
 --QUERY 3
 
-
+SELECT
+	customer_id,
+	market_date
+FROM
+(
+	SELECT
+		*,
+		CAST(STRFTIME('%Y', market_date) AS INTEGER) AS market_year,
+		CAST(STRFTIME('%m', market_date) AS INTEGER) AS market_month,
+		CAST(STRFTIME('%d', market_date) AS INTEGER) AS market_day,
+		ROW_NUMBER () OVER (
+			PARTITION BY customer_id
+			ORDER BY 
+				market_date DESC --Reverse market_date listing order
+		) as visit_number
+	FROM customer_purchases
+)
+WHERE
+	visit_number = 1;
 
 
 --END QUERY
@@ -66,7 +102,26 @@ You can make this a running count by including an ORDER BY within the PARTITION 
 Filter the visits to dates before April 29, 2022. */
 --QUERY 4
 
-
+SELECT
+	DISTINCT customer_id, --Lock customer_id to show count results from unique pairs of customer_id and product_id
+	product_id,
+	purchase_count
+FROM
+(
+	SELECT
+		*,
+		CAST(STRFTIME('%Y', market_date) AS INTEGER) AS market_year,
+		CAST(STRFTIME('%m', market_date) AS INTEGER) AS market_month,
+		CAST(STRFTIME('%d', market_date) AS INTEGER) AS market_day,
+		COUNT(*) OVER (
+			PARTITION BY customer_id, product_id
+		) as purchase_count --returns the same tallied purchase_count for the corresponding pairs of customer_id and product_id 
+	FROM customer_purchases
+	WHERE
+		market_year <= 2022 AND
+		market_month <= 4 AND
+		market_day < 29
+);
 
 
 --END QUERY
@@ -85,7 +140,14 @@ Remove any trailing or leading whitespaces. Don't just use a case statement for 
 Hint: you might need to use INSTR(product_name,'-') to find the hyphens. INSTR will help split the column. */
 --QUERY 5
 
-
+SELECT
+	product_name,
+	CASE
+		WHEN SUBSTR(product_name, 1, INSTR(product_name,'-')-1 ) != ''
+			THEN LTRIM(SUBSTR(product_name, INSTR(product_name,'-')+1 )) 
+		ELSE NULL
+	END description
+FROM product;
 
 
 --END QUERY
@@ -94,7 +156,17 @@ Hint: you might need to use INSTR(product_name,'-') to find the hyphens. INSTR w
 /* 2. Filter the query to show any product_size value that contain a number with REGEXP. */
 --QUERY 6
 
-
+SELECT
+	product_name,
+	CASE
+		WHEN SUBSTR(product_name, 1, INSTR(product_name,'-')-1 ) != ''
+			THEN LTRIM(SUBSTR(product_name, INSTR(product_name,'-')+1 )) 
+		ELSE NULL
+	END description,
+	product_size
+FROM product
+WHERE
+	product_size REGEXP '\d';
 
 
 --END QUERY
@@ -111,8 +183,57 @@ HINT: There are a possibly a few ways to do this query, but if you're struggling
 with a UNION binding them. */
 --QUERY 7
 
+-- Create temp table that determines total sales values per market day
+DROP TABLE IF EXISTS temp.sale_values;
 
+CREATE TEMP TABLE IF NOT EXISTS temp.sale_values AS
+SELECT 
+	market_date,
+	quantity * cost_per_quantity AS price,
+	SUM(quantity * cost_per_quantity) AS total_sale_value
+FROM customer_purchases
+GROUP BY market_date
+ORDER BY market_date ASC;
 
+---- Check
+-- SELECT *
+-- FROM temp.sale_values;
+
+-- Create separate temp table that ranks the sales values. Add column for best_day_rank and worst_day_rank for later filtering step
+DROP TABLE IF EXISTS temp.ranked_market_dates;
+
+CREATE TEMP TABLE IF NOT EXISTS temp.ranked_market_dates AS
+
+SELECT 
+	market_date,
+	ROW_NUMBER() OVER (
+	ORDER BY 
+		total_sale_value DESC
+	) AS best_day_rank,
+	ROW_NUMBER() OVER (
+	ORDER BY 
+		total_sale_value ASC
+	) AS worst_day_rank,
+	total_sale_value
+FROM temp.sale_values;
+
+-- Select and combine the best and worst ranks to display as one table
+
+-- Best rank
+SELECT 
+	market_date,
+	total_sale_value
+FROM temp.ranked_market_dates
+WHERE best_day_rank = 1
+
+UNION
+
+--Worst rank
+SELECT 
+	market_date,
+	total_sale_value
+FROM temp.ranked_market_dates
+WHERE worst_day_rank = 1;
 
 --END QUERY
 
@@ -132,8 +253,51 @@ How many customers are there (y).
 Before your final group by you should have the product of those two queries (x*y).  */
 --QUERY 8
 
+DROP TABLE IF EXISTS temp.vendor_product;
 
+CREATE TEMP TABLE IF NOT EXISTS temp.vendor_product AS
 
+SELECT
+	vendor_id,
+	product_id,
+	original_price * count_sold AS sales_per_customer
+FROM
+(
+	SELECT 
+		DISTINCT vendor_id, product_id,
+		original_price,
+		5 AS count_sold -- 5 of each product to sell to customer
+	FROM vendor_inventory
+	ORDER BY 
+		vendor_id ASC,
+		product_id ASC
+);
+
+DROP TABLE IF EXISTS temp.customer_list;
+
+CREATE TEMP TABLE IF NOT EXISTS temp.customer_list AS
+
+SELECT
+	customer_id
+FROM customer;
+
+SELECT
+	vendor_name,
+	product_name,
+	SUM(sales_per_customer) as total_product_sales
+FROM
+(
+SELECT 
+	vendor_id,
+	product_id,
+	sales_per_customer,
+	customer_id
+FROM temp.vendor_product
+CROSS JOIN temp.customer_list
+)
+JOIN vendor USING(vendor_id) -- Shorter form in place of using ON 
+JOIN product USING(product_id)
+GROUP BY product_id;
 
 --END QUERY
 
@@ -145,8 +309,15 @@ It should use all of the columns from the product table, as well as a new column
 Name the timestamp column `snapshot_timestamp`. */
 --QUERY 9
 
+DROP TABLE IF EXISTS product_units;
 
-
+CREATE TABLE IF NOT EXISTS product_units AS
+SELECT 
+	*,
+	CURRENT_TIMESTAMP AS snapshot_timestamp
+FROM product
+WHERE
+	product.product_qty_type = 'unit';
 
 --END QUERY
 
@@ -155,8 +326,22 @@ Name the timestamp column `snapshot_timestamp`. */
 This can be any product you desire (e.g. add another record for Apple Pie). */
 --QUERY 10
 
-
-
+INSERT INTO product_units (
+	product_id,
+	product_name,
+	product_size,
+	product_category_id,
+	product_qty_type,
+	snapshot_timestamp
+	)
+VALUES (
+	7,
+	'Apple Pie',
+	'12"', -- 12" instead of 10"
+	3,
+	'unit',
+	CURRENT_TIMESTAMP
+	)
 
 --END QUERY
 
@@ -167,8 +352,10 @@ This can be any product you desire (e.g. add another record for Apple Pie). */
 HINT: If you don't specify a WHERE clause, you are going to have a bad time.*/
 --QUERY 11
 
-
-
+DELETE FROM product_units
+WHERE
+	product_id = 7 AND -- Delete only from Apple Pie product set 
+	snapshot_timestamp < (SELECT MAX(snapshot_timestamp) FROM product_units); -- Delete all older entries and keep only the latest version
 
 --END QUERY
 
@@ -191,8 +378,40 @@ Finally, make sure you have a WHERE statement to update the right row,
 When you have all of these components, you can run the update statement. */
 --QUERY 12
 
-
-
+UPDATE product_units
+SET current_quantity = quantity -- Updates the current_quantity column with the result query for latest quantities
+FROM
+(
+	-- This query returns the coalesced latest quantity per product
+	SELECT
+		product_id,
+		COALESCE(quantity,0) as quantity
+	FROM product_units
+	LEFT JOIN -- (Not all products from product units exist in vendor_inventory)
+	(
+		-- This query calls for the quantity from the latest version per prodcut
+		SELECT
+			product_id,
+			quantity
+		FROM
+		(
+			-- This query ranks all versions of different products based on market_date
+			SELECT
+				*,
+				ROW_NUMBER() OVER (
+				PARTITION BY product_id
+				ORDER BY market_date DESC -- Latest version ranks 1st
+				) AS version_number
+			FROM vendor_inventory 
+		) AS temp_vendor_inventory 
+		WHERE
+			temp_vendor_inventory.version_number = 1
+	)
+	USING(product_id)
+	ORDER BY product_id
+) as p
+WHERE 
+	product_units.product_id = p.product_id; --Update column by matching product_id
 
 --END QUERY
 
