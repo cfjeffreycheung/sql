@@ -24,7 +24,7 @@ All the other rows will remain the same. */
 --QUERY 1
 
 SELECT 
-product_name || ', ' || COALESCE(product_size, ' ')|| ' (' || COALESCE(product_qty_type, 'unit')|| ')'
+product_name || ', ' || COALESCE(product_size, ' ')|| ' (' || COALESCE(product_qty_type, 'unit')|| ')' AS value
 FROM product;
 
 --END QUERY
@@ -47,19 +47,19 @@ Filter the visits to dates before April 29, 2022. */
 SELECT
 	customer_id,
 	market_date,
-	CAST(STRFTIME('%Y', market_date) AS INTEGER) AS market_year,
-	CAST(STRFTIME('%m', market_date) AS INTEGER) AS market_month,
-	CAST(STRFTIME('%d', market_date) AS INTEGER) AS market_day,
 	ROW_NUMBER () OVER (
 		PARTITION BY customer_id --counting per unique customer
 		ORDER BY 
 			market_date ASC
 	) as visit_number
-FROM customer_purchases
-WHERE
-	market_year <= 2022 AND
-	market_month <= 4 AND
-	market_day < 29;
+FROM 
+(
+	SELECT -- Get query with distinct customer_id and market_dates
+		DISTINCT customer_id, market_date
+	FROM customer_purchases
+	WHERE
+		market_date < '2022-04-29' -- filter query prior to 29 April 2022
+);
 
 
 --END QUERY
@@ -71,25 +71,25 @@ only the customer’s most recent visit.
 HINT: Do not use the previous visit dates filter. */
 --QUERY 3
 
-SELECT
-	customer_id,
-	market_date
+SELECT *
 FROM
 (
 	SELECT
-		*,
-		CAST(STRFTIME('%Y', market_date) AS INTEGER) AS market_year,
-		CAST(STRFTIME('%m', market_date) AS INTEGER) AS market_month,
-		CAST(STRFTIME('%d', market_date) AS INTEGER) AS market_day,
+		customer_id,
+		market_date,
 		ROW_NUMBER () OVER (
-			PARTITION BY customer_id
+			PARTITION BY customer_id -- counting per unique customer
 			ORDER BY 
-				market_date DESC --Reverse market_date listing order
+				market_date DESC -- reverse market_date order
 		) as visit_number
-	FROM customer_purchases
+	FROM 
+	(
+		SELECT -- Get query with distinct customer_id and market_dates
+			DISTINCT customer_id, market_date
+		FROM customer_purchases
+	)
 )
-WHERE
-	visit_number = 1;
+WHERE visit_number = 1;
 
 
 --END QUERY
@@ -103,24 +103,22 @@ Filter the visits to dates before April 29, 2022. */
 --QUERY 4
 
 SELECT
-	DISTINCT customer_id, --Lock customer_id to show count results from unique pairs of customer_id and product_id
+	customer_id, 
+	vendor_id,
 	product_id,
-	purchase_count
+	market_date,
+	transaction_time,
+	product_purchase_count
 FROM
 (
 	SELECT
 		*,
-		CAST(STRFTIME('%Y', market_date) AS INTEGER) AS market_year,
-		CAST(STRFTIME('%m', market_date) AS INTEGER) AS market_month,
-		CAST(STRFTIME('%d', market_date) AS INTEGER) AS market_day,
 		COUNT(*) OVER (
 			PARTITION BY customer_id, product_id
-		) as purchase_count --returns the same tallied purchase_count for the corresponding pairs of customer_id and product_id 
+		) as product_purchase_count --returns the same tallied purchase_count for the corresponding pairs of customer_id and product_id 
 	FROM customer_purchases
 	WHERE
-		market_year <= 2022 AND
-		market_month <= 4 AND
-		market_day < 29
+		market_date < '2022-04-29'
 );
 
 
