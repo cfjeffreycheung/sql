@@ -104,7 +104,7 @@ SELECT
 		ELSE 'bulk'
 	END product_qty_type_condensed,
 	CASE
-		WHEN lower(product_name) REGEXP 'pepper'
+		WHEN LOWER(product_name) LIKE '%pepper%' 
 			THEN 1
 		ELSE 0
 	END pepper_flag
